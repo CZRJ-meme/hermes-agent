@@ -2166,6 +2166,45 @@ class HermesCLI:
         emoji = "⏱" if live else "⏲"
         return f"{emoji} {time_str}"
 
+    def _get_provider_abbrev(self, provider: str) -> str:
+        """Map provider slug to a short display abbreviation for status bar."""
+        if not provider:
+            return ""
+        p = provider.lower().strip()
+        abbrev_map = {
+            "minimax": "mm",
+            "minimax-cn": "mm",
+            "dashscope": "qw",
+            "coding.dashscope.aliyuncs.com": "qw",
+            "qwen": "qw",
+            "stepfun": "sf",
+            "step": "sf",
+            "zai": "glm",
+            "glm": "glm",
+            "kimi-coding": "kimi",
+            "kimi-coding-cn": "kimi",
+            "moonshot": "kimi",
+            "anthropic": "ap",
+            "openai": "oa",
+            "openai-codex": "oa",
+            "openrouter": "or",
+            "nous": "nous",
+            "google": "gg",
+            "gemini": "gg",
+            "xai": "grok",
+            "nvidia": "nv",
+            "deepseek": "ds",
+            "arcee": "arcee",
+            "xiaomi": "mimo",
+            "opencode-zen": "zen",
+            "opencode-go": "zen",
+            "copilot": "gh",
+            "copilot-acp": "gh",
+            "ollama-cloud": "ollama",
+            "ollama": "ollama",
+        }
+        return abbrev_map.get(p, p[:4])
+
     def _get_status_bar_snapshot(self) -> Dict[str, Any]:
         # Prefer the agent's model name — it updates on fallback.
         # self.model reflects the originally configured model and never
@@ -2173,9 +2212,14 @@ class HermesCLI:
         # _try_activate_fallback() switches provider/model.
         agent = getattr(self, "agent", None)
         model_name = (getattr(agent, "model", None) or self.model or "unknown")
+        provider = getattr(agent, "provider", None) or getattr(self, "provider", "")
         model_short = model_name.split("/")[-1] if "/" in model_name else model_name
         if model_short.endswith(".gguf"):
             model_short = model_short[:-5]
+        # Add provider abbreviation prefix: [mm] M2.7
+        abbrev = self._get_provider_abbrev(provider)
+        if abbrev:
+            model_short = f"[{abbrev}] {model_short}"
         if len(model_short) > 26:
             model_short = f"{model_short[:23]}..."
 
