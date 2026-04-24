@@ -27,6 +27,19 @@ def clarify_callback(cli, question, choices):
     response_queue = queue.Queue()
     is_open_ended = not choices
 
+    # Send macOS notification for ALL clarify requests (user interaction needed)
+    try:
+        import subprocess
+        # Truncate question for notification
+        notify_question = question[:100] + "..." if len(question) > 100 else question
+        subprocess.run(
+            ["/Users/czrj/bin/hermes-notify.sh", "approval", notify_question],
+            capture_output=True,
+            timeout=5
+        )
+    except Exception:
+        pass  # Don't fail if notification fails
+
     cli._clarify_state = {
         "question": question,
         "choices": choices if not is_open_ended else [],
@@ -207,6 +220,7 @@ def approval_callback(cli, command: str, description: str) -> str:
         if len(command) > 70:
             choices.append("view")
 
+        cli._approval_deadline = _time.monotonic() + timeout
         cli._approval_state = {
             "command": command,
             "description": description,
@@ -214,7 +228,18 @@ def approval_callback(cli, command: str, description: str) -> str:
             "selected": 0,
             "response_queue": response_queue,
         }
-        cli._approval_deadline = _time.monotonic() + timeout
+
+        # Send initial macOS notification for approval request
+        try:
+            import subprocess
+            notify_desc = description[:100] + "..." if len(description) > 100 else description
+            subprocess.run(
+                ["/Users/czrj/bin/hermes-notify.sh", "approval", notify_desc, ""],
+                capture_output=True,
+                timeout=5
+            )
+        except Exception:
+            pass
 
         if hasattr(cli, "_app") and cli._app:
             cli._app.invalidate()
@@ -228,9 +253,21 @@ def approval_callback(cli, command: str, description: str) -> str:
                     cli._app.invalidate()
                 return result
             except queue.Empty:
-                remaining = cli._approval_deadline - _time.monotonic()
+                remaining = int(cli._approval_deadline - _time.monotonic())
                 if remaining <= 0:
                     break
+                # Update notification with countdown every 5 seconds
+                if remaining % 5 == 0:
+                    try:
+                        import subprocess
+                        notify_desc = description[:100] + "..." if len(description) > 100 else description
+                        subprocess.run(
+                            ["/Users/czrj/bin/hermes-notify.sh", "approval", notify_desc, str(remaining)],
+                            capture_output=True,
+                            timeout=5
+                        )
+                    except Exception:
+                        pass
                 if hasattr(cli, "_app") and cli._app:
                     cli._app.invalidate()
 

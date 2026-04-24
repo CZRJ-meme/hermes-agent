@@ -411,6 +411,44 @@ def save_permanent_allowlist(patterns: set):
 
 
 # =========================================================================
+# macOS Notification for dangerous command approvals
+# =========================================================================
+
+def _send_approval_notification(command: str, description: str) -> None:
+    """Send a macOS notification for dangerous command approval requests."""
+    import subprocess
+    import os
+
+    # Truncate command for notification
+    cmd_short = command[:80] + "..." if len(command) > 80 else command
+
+    # Use terminal-notifier if available, otherwise osascript
+    try:
+        script_path = os.path.expanduser("~/bin/hermes-notify.sh")
+        if os.path.exists(script_path):
+            subprocess.run(
+                [script_path, "approval", f"[危险命令] {description}: {cmd_short}"],
+                capture_output=True, timeout=5
+            )
+            return
+    except Exception:
+        pass
+
+    # Fallback: use osascript directly
+    try:
+        title = "⚠️ Hermes 危险命令审批"
+        subtitle = description
+        body = cmd_short
+
+        subprocess.run([
+            "osascript", "-e",
+            f'display notification "{body}" with title "{title}" subtitle "{subtitle}"'
+        ], capture_output=True, timeout=5)
+    except Exception:
+        pass  # Silently fail if notification fails
+
+
+# =========================================================================
 # Approval prompting + orchestration
 # =========================================================================
 
@@ -432,6 +470,9 @@ def prompt_dangerous_approval(command: str, description: str,
     """
     if timeout_seconds is None:
         timeout_seconds = _get_approval_timeout()
+
+    # Send macOS notification for dangerous command approval
+    _send_approval_notification(command, description)
 
     if approval_callback is not None:
         try:
