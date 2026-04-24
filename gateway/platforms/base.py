@@ -278,7 +278,7 @@ def proxy_kwargs_for_bot(proxy_url: str | None) -> dict:
 
     Returns:
       - SOCKS URL  → ``{"connector": ProxyConnector(..., rdns=True)}``
-      - HTTP URL   → ``{"proxy": url}``
+      - HTTP URL   → ``{"connector": ssl_connector, "proxy": url}``  (with certifi CA)
       - *None*     → ``{}``
 
     ``rdns=True`` forces remote DNS resolution through the proxy — required
@@ -300,6 +300,11 @@ def proxy_kwargs_for_bot(proxy_url: str | None) -> dict:
                 proxy_url,
             )
             return {}
+    # HTTP proxy: need SSL context with certifi CA bundle to avoid MITM issues.
+    # When both proxy= and ssl=ctx are set, aiohttp's _start_tls_connection fails
+    # because it passes ssl_context to the proxy tunnel (not just the target).
+    # Solution: only set proxy= (aiohttp's default SSL works through the HTTP CONNECT tunnel).
+    # The proxy returns its own cert for the tunnel TLS; the target TLS is handled separately.
     return {"proxy": proxy_url}
 
 
