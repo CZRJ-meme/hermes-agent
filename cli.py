@@ -2378,6 +2378,45 @@ class HermesCLI:
         emoji = "⏱" if live else "⏲"
         return f"{emoji} {time_str}"
 
+    def _get_provider_abbrev(self, provider: str) -> str:
+        """Map provider slug to a short display abbreviation for status bar."""
+        if not provider:
+            return ""
+        p = provider.lower().strip()
+        abbrev_map = {
+            "minimax": "mm",
+            "minimax-cn": "mm",
+            "dashscope": "qw",
+            "coding.dashscope.aliyuncs.com": "qw",
+            "qwen": "qw",
+            "stepfun": "sf",
+            "step": "sf",
+            "zai": "glm",
+            "glm": "glm",
+            "kimi-coding": "kimi",
+            "kimi-coding-cn": "kimi",
+            "moonshot": "kimi",
+            "anthropic": "ap",
+            "openai": "oa",
+            "openai-codex": "oa",
+            "openrouter": "or",
+            "nous": "nous",
+            "google": "gg",
+            "gemini": "gg",
+            "xai": "grok",
+            "nvidia": "nv",
+            "deepseek": "ds",
+            "arcee": "arcee",
+            "xiaomi": "mimo",
+            "opencode-zen": "zen",
+            "opencode-go": "zen",
+            "copilot": "gh",
+            "copilot-acp": "gh",
+            "ollama-cloud": "ollama",
+            "ollama": "ollama",
+        }
+        return abbrev_map.get(p, p[:4])
+
     def _get_status_bar_snapshot(self) -> Dict[str, Any]:
         # Prefer the agent's model name — it updates on fallback.
         # self.model reflects the originally configured model and never
@@ -2385,9 +2424,14 @@ class HermesCLI:
         # _try_activate_fallback() switches provider/model.
         agent = getattr(self, "agent", None)
         model_name = (getattr(agent, "model", None) or self.model or "unknown")
+        provider = getattr(agent, "provider", None) or getattr(self, "provider", "")
         model_short = model_name.split("/")[-1] if "/" in model_name else model_name
         if model_short.endswith(".gguf"):
             model_short = model_short[:-5]
+        # Add provider abbreviation prefix: [mm] M2.7
+        abbrev = self._get_provider_abbrev(provider)
+        if abbrev:
+            model_short = f"[{abbrev}] {model_short}"
         if len(model_short) > 26:
             model_short = f"{model_short[:23]}..."
 
@@ -8714,7 +8758,19 @@ class HermesCLI:
 
             self._invalidate()
 
+            # Send initial macOS notification for approval request
+            try:
+                import subprocess as _sp
+                _notify_desc = description[:100] + "..." if len(description) > 100 else description
+                _sp.Popen(
+                    ["/Users/czrj/bin/hermes-notify.sh", "approval", _notify_desc, str(timeout)],
+                    stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
+                )
+            except Exception:
+                pass
+
             _last_countdown_refresh = _time.monotonic()
+            _last_notify_refresh = _time.monotonic()
             while True:
                 try:
                     result = response_queue.get(timeout=1)
@@ -8730,6 +8786,18 @@ class HermesCLI:
                     if now - _last_countdown_refresh >= 5.0:
                         _last_countdown_refresh = now
                         self._invalidate()
+                        # Update macOS notification with countdown
+                        if now - _last_notify_refresh >= 5.0:
+                            _last_notify_refresh = now
+                            try:
+                                import subprocess as _sp
+                                _notify_desc = description[:100] + "..." if len(description) > 100 else description
+                                _sp.Popen(
+                                    ["/Users/czrj/bin/hermes-notify.sh", "approval", _notify_desc, str(int(remaining))],
+                                    stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
+                                )
+                            except Exception:
+                                pass
 
             self._approval_state = None
             self._approval_deadline = 0
@@ -9501,6 +9569,22 @@ class HermesCLI:
             if self.bell_on_complete:
                 sys.stdout.write("\a")
                 sys.stdout.flush()
+
+            # Send macOS notification when response is complete
+            if response:
+                try:
+                    import subprocess
+                    # Use first 200 chars as preview
+                    preview = response[:200] + "..." if len(response) > 200 else response
+                    # Clean up for notification (remove ANSI codes)
+                    preview = preview.replace("\x1b", "").replace("\n", " ").strip()
+                    subprocess.Popen(
+                        ["/Users/czrj/bin/hermes-notify.sh", "response", preview],
+                        stdout=subprocess.DEVNULL,
+                        stderr=subprocess.DEVNULL
+                    )
+                except Exception:
+                    pass
 
             # Notify when iteration budget was hit
             if result and not result.get("completed") and not result.get("interrupted"):

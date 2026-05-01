@@ -244,6 +244,37 @@ def _home_target_env_var(platform_name: str) -> str:
 
 _ensure_ssl_certs()
 
+# ---------------------------------------------------------------------------
+# Monkey-patch aiohttp.TCPConnector to use certifi CA bundle by default.
+# This is required when running behind an MITM proxy (e.g. Clash Verge)
+# that terminates SSL connections. The proxy's cert is not in the system's
+# default CA store, but is verified by the proxy itself. discord.py creates
+# a TCPConnector(limit=0) without SSL context, so we inject certifi's CA
+# bundle as the default SSL context to ensure Discord's real cert is trusted.
+# Must run BEFORE any aiohttp or discord module is imported.
+# ---------------------------------------------------------------------------
+try:
+    import ssl as _ssl
+    import certifi as _certifi
+    import aiohttp as _aiohttp
+
+    _orig_tcp_init = _aiohttp.TCPConnector.__init__
+
+    def _patched_tcp_init(self, *args, **kwargs):
+        # Inject certifi CA if no explicit ssl context/ssl object given
+        # and SSL verification is not explicitly disabled (ssl=False).
+        # Note: kwargs.get('ssl') returns the default True when not passed,
+        # so we check whether ssl/ssl_context appear in kwargs at all.
+        _ssl_ctx = kwargs.get("ssl_context")
+        _ssl_arg = kwargs.get("ssl")
+        if _ssl_ctx is None and _ssl_arg is None and kwargs.get("verify_ssl", True) is not False:
+            kwargs["ssl_context"] = _ssl.create_default_context(cafile=_certifi.where())
+        _orig_tcp_init(self, *args, **kwargs)
+
+    _aiohttp.TCPConnector.__init__ = _patched_tcp_init
+except ImportError:
+    pass  # aiohttp or certifi not available
+
 # Add parent directory to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
 
