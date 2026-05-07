@@ -290,14 +290,7 @@ PROVIDER_REGISTRY: Dict[str, ProviderConfig] = {
         api_key_env_vars=("DASHSCOPE_API_KEY",),
         base_url_env_var="DASHSCOPE_BASE_URL",
     ),
-    "alibaba-coding-plan": ProviderConfig(
-        id="alibaba-coding-plan",
-        name="Alibaba Cloud (Coding Plan)",
-        auth_type="api_key",
-        inference_base_url="https://coding-intl.dashscope.aliyuncs.com/v1",
-        api_key_env_vars=("ALIBABA_CODING_PLAN_API_KEY", "DASHSCOPE_API_KEY"),
-        base_url_env_var="ALIBABA_CODING_PLAN_BASE_URL",
-    ),
+
     "minimax-cn": ProviderConfig(
         id="minimax-cn",
         name="MiniMax (China)",
@@ -1325,8 +1318,7 @@ def resolve_provider(
         "gmi-cloud": "gmi", "gmicloud": "gmi",
         "minimax-china": "minimax-cn", "minimax_cn": "minimax-cn",
         "minimax-portal": "minimax-oauth", "minimax-global": "minimax-oauth", "minimax_oauth": "minimax-oauth",
-        "alibaba_coding": "alibaba-coding-plan", "alibaba-coding": "alibaba-coding-plan",
-        "alibaba_coding_plan": "alibaba-coding-plan",
+
         "claude": "anthropic", "claude-code": "anthropic",
         "github": "copilot", "github-copilot": "copilot",
         "github-models": "copilot", "github-model": "copilot",
