@@ -33,7 +33,7 @@ def clarify_callback(cli, question, choices):
         # Truncate question for notification
         notify_question = question[:100] + "..." if len(question) > 100 else question
         subprocess.run(
-            ["/Users/czrj/bin/hermes-notify.sh", "approval", notify_question],
+            ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "approval", notify_question],
             capture_output=True,
             timeout=5
         )
@@ -234,7 +234,7 @@ def approval_callback(cli, command: str, description: str) -> str:
             import subprocess
             notify_desc = description[:100] + "..." if len(description) > 100 else description
             subprocess.run(
-                ["/Users/czrj/bin/hermes-notify.sh", "approval", notify_desc, ""],
+                ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "approval", notify_desc, ""],
                 capture_output=True,
                 timeout=5
             )
@@ -262,7 +262,7 @@ def approval_callback(cli, command: str, description: str) -> str:
                         import subprocess
                         notify_desc = description[:100] + "..." if len(description) > 100 else description
                         subprocess.run(
-                            ["/Users/czrj/bin/hermes-notify.sh", "approval", notify_desc, str(remaining)],
+                            ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "approval", notify_desc, str(remaining)],
                             capture_output=True,
                             timeout=5
                         )

@@ -9140,7 +9140,7 @@ class HermesCLI:
                 import subprocess as _sp
                 _notify_desc = description[:100] + "..." if len(description) > 100 else description
                 _sp.Popen(
-                    ["/Users/czrj/bin/hermes-notify.sh", "approval", _notify_desc, str(timeout)],
+                    ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "approval", _notify_desc, str(timeout)],
                     stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
                 )
             except Exception:
@@ -9170,7 +9170,7 @@ class HermesCLI:
                                 import subprocess as _sp
                                 _notify_desc = description[:100] + "..." if len(description) > 100 else description
                                 _sp.Popen(
-                                    ["/Users/czrj/bin/hermes-notify.sh", "approval", _notify_desc, str(int(remaining))],
+                                    ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "approval", _notify_desc, str(int(remaining))],
                                     stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
                                 )
                             except Exception:
@@ -9956,7 +9956,7 @@ class HermesCLI:
                     # Clean up for notification (remove ANSI codes)
                     preview = preview.replace("\x1b", "").replace("\n", " ").strip()
                     subprocess.Popen(
-                        ["/Users/czrj/bin/hermes-notify.sh", "response", preview],
+                        ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "response", preview],
                         stdout=subprocess.DEVNULL,
                         stderr=subprocess.DEVNULL
                     )
