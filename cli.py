@@ -9884,19 +9884,7 @@ class HermesCLI:
 
             self._invalidate()
 
-            # Send initial macOS notification for approval request
-            try:
-                import subprocess as _sp
-                _notify_desc = description[:100] + "..." if len(description) > 100 else description
-                _sp.Popen(
-                    ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "approval", _notify_desc, str(timeout)],
-                    stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
-                )
-            except Exception:
-                pass
-
             _last_countdown_refresh = _time.monotonic()
-            _last_notify_refresh = _time.monotonic()
             while True:
                 try:
                     result = response_queue.get(timeout=1)
@@ -9912,18 +9900,6 @@ class HermesCLI:
                     if now - _last_countdown_refresh >= 5.0:
                         _last_countdown_refresh = now
                         self._invalidate()
-                        # Update macOS notification with countdown
-                        if now - _last_notify_refresh >= 5.0:
-                            _last_notify_refresh = now
-                            try:
-                                import subprocess as _sp
-                                _notify_desc = description[:100] + "..." if len(description) > 100 else description
-                                _sp.Popen(
-                                    ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "approval", _notify_desc, str(int(remaining))],
-                                    stdout=_sp.DEVNULL, stderr=_sp.DEVNULL,
-                                )
-                            except Exception:
-                                pass
 
             self._approval_state = None
             self._approval_deadline = 0
@@ -10728,22 +10704,6 @@ class HermesCLI:
             if self.bell_on_complete:
                 sys.stdout.write("\a")
                 sys.stdout.flush()
-
-            # Send macOS notification when response is complete
-            if response:
-                try:
-                    import subprocess
-                    # Use first 200 chars as preview
-                    preview = response[:200] + "..." if len(response) > 200 else response
-                    # Clean up for notification (remove ANSI codes)
-                    preview = preview.replace("\x1b", "").replace("\n", " ").strip()
-                    subprocess.Popen(
-                        ["/Users/czrj/Developer-AI/hermes-notify/hermes-notify.sh", "response", preview],
-                        stdout=subprocess.DEVNULL,
-                        stderr=subprocess.DEVNULL
-                    )
-                except Exception:
-                    pass
 
             # Notify when iteration budget was hit
             if result and not result.get("completed") and not result.get("interrupted"):

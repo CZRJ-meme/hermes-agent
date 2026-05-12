@@ -15442,7 +15442,7 @@ class AIAgent:
             )
         except Exception as exc:
             logger.warning("on_session_end hook failed: %s", exc)
-        
+
         return result
 
     def chat(self, message: str, stream_callback: Optional[callable] = None) -> str:
