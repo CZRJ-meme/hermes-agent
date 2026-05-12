@@ -43,6 +43,21 @@ Usage:
     hermes claw migrate --dry-run  # Preview migration without changes
 """
 
+# ---------------------------------------------------------------------------
+# SSL_CERT_FILE must be set BEFORE any import that touches the ssl module.
+# hermes_cli/auth.py imports ssl early, which caches the default CA path.
+# When the gateway runs behind an MITM proxy (Clash Verge), certifi's CA
+# bundle is needed to verify Discord's certificate through the proxy.
+# ---------------------------------------------------------------------------
+import os as _os
+
+try:
+    import certifi as _certifi
+    _os.environ.setdefault("SSL_CERT_FILE", _certifi.where())
+except ImportError:
+    pass
+del _os
+
 # IMPORTANT: hermes_bootstrap must be the very first import — it sets up
 # UTF-8 stdio on Windows so print()/subprocess children don't hit
 # UnicodeEncodeError with non-ASCII characters.  No-op on POSIX.

@@ -369,18 +369,6 @@ def _restart_notification_pending() -> bool:
 # knows not to clobber TERMINAL_CWD if lazily imported.
 os.environ["_HERMES_GATEWAY"] = "1"
 
-# Set certifi CA bundle as the default SSL cert file so that Python's
-# ssl module (and libraries built on it — aiohttp, discord.py, httpx, …)
-# can verify certificates when the gateway connects through an MITM proxy
-# (e.g. Clash Verge). The system CA store does not contain the proxy's
-# certificate chain, but certifi bundles the public CA roots Discord uses.
-# This is a 1-line alternative to monkey-patching aiohttp.TCPConnector.
-try:
-    import certifi
-    os.environ.setdefault("SSL_CERT_FILE", certifi.where())
-except ImportError:
-    pass
-
 _ensure_ssl_certs()
 
 # Add parent directory to path
