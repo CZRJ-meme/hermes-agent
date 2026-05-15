@@ -3036,7 +3036,17 @@ def resolve_provider_client(
                          provider, ", ".join(tried_sources))
             return None, None
 
-        raw_base_url = str(creds.get("base_url", "")).strip().rstrip("/") or pconfig.inference_base_url
+        # Prefer the credential pool's base_url so the auxiliary client
+        # uses the same endpoint the user configured for the main agent.
+        # This fixes the case where a provider's default base_url (from
+        # PROVIDER_REGISTRY / env var) differs from the pool entry
+        # (e.g. alibaba domestic vs international endpoints).
+        _pool_present, _pool_entry = _select_pool_entry(provider)
+        if _pool_present and _pool_entry:
+            _pool_base = _pool_runtime_base_url(_pool_entry)
+            raw_base_url = _pool_base or str(creds.get("base_url", "")).strip().rstrip("/") or pconfig.inference_base_url
+        else:
+            raw_base_url = str(creds.get("base_url", "")).strip().rstrip("/") or pconfig.inference_base_url
         base_url = _to_openai_base_url(raw_base_url)
         # Honour an explicit base_url override from the caller — used when a
         # fallback_model entry (or custom_providers lookup) routes through a
