@@ -519,6 +519,17 @@ function SessionRow({
                 )}
                 <span className="text-border">&#183;</span>
                 <span className="shrink-0">{timeAgo(session.last_active)}</span>
+                <span className="text-border">&#183;</span>
+                <span
+                  className="shrink-0 font-mono-ui text-[0.65rem] text-muted-foreground/60 cursor-pointer hover:text-muted-foreground"
+                  title={session.id}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    navigator.clipboard.writeText(session.id);
+                  }}
+                >
+                  {session.id}
+                </span>
               </div>
               {snippet && <SnippetHighlight snippet={snippet} />}
             </div>
