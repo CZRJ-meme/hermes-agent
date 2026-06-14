@@ -1560,7 +1560,12 @@ class AIAgent:
             if not self._session_db_created:
                 self._ensure_db_session()
             start_idx = len(conversation_history) if conversation_history else 0
-            flush_from = max(start_idx, self._last_flushed_db_idx)
+            # Guard against the flush cursor overshooting the message list.
+            # This can happen when repair_message_sequence compacts the list
+            # (merging consecutive users, dropping stray tools) after the
+            # cursor was set.  Fall back to start_idx so we don't skip
+            # persisting the assistant/tool chain (#44837).
+            flush_from = max(start_idx, min(self._last_flushed_db_idx, len(messages)))
             for msg in messages[flush_from:]:
                 role = msg.get("role", "unknown")
                 content = msg.get("content")
@@ -2827,6 +2832,8 @@ class AIAgent:
         """
         if getattr(self, "notice_callback", None) is None and getattr(self, "notice_clear_callback", None) is None:
             return
+        if not self._credits_notices_enabled():
+            return
         state = getattr(self, "_credits_state", None)
         if state is None:
             return
@@ -2849,6 +2856,29 @@ class AIAgent:
                 self._emit_notice(notice)
         except Exception:
             logger.warning("credits notice evaluation/emit failed", exc_info=True)
+
+    def _credits_notices_enabled(self) -> bool:
+        """Whether credits notices are enabled (config display.credits_notices).
+
+        Read once per agent and cached — the policy runs after every API
+        response, and the setting governs UI noise, not correctness, so a
+        config flip applying on the next session is fine.  Fail-open True
+        (preserve current behaviour) on any config error.
+        """
+        cached = getattr(self, "_credits_notices_enabled_cache", None)
+        if cached is not None:
+            return cached
+        enabled = True
+        try:
+            from hermes_cli.config import load_config as _load_config
+            _cfg = _load_config() or {}
+            _display = _cfg.get("display") if isinstance(_cfg, dict) else None
+            if isinstance(_display, dict) and "credits_notices" in _display:
+                enabled = bool(_display.get("credits_notices"))
+        except Exception:
+            enabled = True
+        self._credits_notices_enabled_cache = enabled
+        return enabled
 
     def get_credits_state(self):
         """Return the last captured CreditsState, or None."""
@@ -3216,7 +3246,11 @@ class AIAgent:
         return sanitize_api_messages(messages)
 
     @staticmethod
-    def _is_thinking_only_assistant(msg: Dict[str, Any]) -> bool:
+    def _is_thinking_only_assistant(
+        msg: Dict[str, Any],
+        *,
+        drop_codex_reasoning_items: bool = True,
+    ) -> bool:
         """Return True if ``msg`` is an assistant turn whose only payload is reasoning.
 
         "Thinking-only" means the model emitted reasoning (``reasoning`` or
@@ -3267,15 +3301,30 @@ class AIAgent:
         rd = msg.get("reasoning_details")
         if isinstance(rd, list) and rd:
             return True
+        # Codex Responses stores encrypted reasoning state under a separate
+        # assistant-message key. Treat only real reasoning items as
+        # thinking-only; empty/junk lists should fall through to the generic
+        # empty-turn handling instead of being dropped here.
+        codex_items = msg.get("codex_reasoning_items")
+        if drop_codex_reasoning_items and isinstance(codex_items, list):
+            return any(
+                isinstance(item, dict) and item.get("type") == "reasoning"
+                for item in codex_items
+            )
         return False
 
     @staticmethod
     def _drop_thinking_only_and_merge_users(
         messages: List[Dict[str, Any]],
+        *,
+        drop_codex_reasoning_items: bool = True,
     ) -> List[Dict[str, Any]]:
         """Forwarder — see ``agent.agent_runtime_helpers.drop_thinking_only_and_merge_users``."""
         from agent.agent_runtime_helpers import drop_thinking_only_and_merge_users
-        return drop_thinking_only_and_merge_users(messages)
+        return drop_thinking_only_and_merge_users(
+            messages,
+            drop_codex_reasoning_items=drop_codex_reasoning_items,
+        )
 
     @staticmethod
     def _cap_delegate_task_calls(tool_calls: list) -> list:
@@ -4504,10 +4553,18 @@ class AIAgent:
         )
         return summary
 
-    def _try_shrink_image_parts_in_messages(self, api_messages: list) -> bool:
+    def _try_shrink_image_parts_in_messages(
+        self,
+        api_messages: list,
+        *,
+        max_dimension: int = 8000,
+    ) -> bool:
         """Forwarder — see ``agent.conversation_compression.try_shrink_image_parts_in_messages``."""
         from agent.conversation_compression import try_shrink_image_parts_in_messages
-        return try_shrink_image_parts_in_messages(api_messages)
+        return try_shrink_image_parts_in_messages(
+            api_messages,
+            max_dimension=max_dimension,
+        )
 
     def _try_strip_image_parts_from_tool_messages(self, api_messages: list) -> bool:
         """Downgrade list-type tool messages to text summaries in-place.
