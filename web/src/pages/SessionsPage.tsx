@@ -805,10 +805,9 @@ export default function SessionsPage() {
       <Button
         outlined
         size="sm"
-        className="gap-1.5"
         onClick={() => setPruneOpen(true)}
+        prefix={<Archive />}
       >
-        <Archive className="h-3.5 w-3.5" />
         Prune old sessions
       </Button>,
     );
@@ -1502,8 +1501,8 @@ export default function SessionsPage() {
                 onClick={() => setDeleteEmptyOpen(true)}
                 aria-label={t.sessions.deleteEmpty}
                 title={t.sessions.deleteEmpty}
+                prefix={<Eraser />}
               >
-                <Eraser className="h-3.5 w-3.5" />
                 <span className="font-mondwest normal-case text-xs">
                   {t.sessions.deleteEmpty} ({emptyCount})
                 </span>
@@ -1576,8 +1575,8 @@ export default function SessionsPage() {
               "{count}",
               String(selectedIds.size),
             )}
+            prefix={<Trash2 />}
           >
-            <Trash2 className="h-3.5 w-3.5" />
             <span className="font-mondwest normal-case text-xs">
               {t.sessions.deleteSelected.replace(
                 "{count}",
