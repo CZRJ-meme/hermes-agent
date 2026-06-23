@@ -1466,7 +1466,7 @@ class FeishuAdapter(BasePlatformAdapter):
         self._pending_media_batches = self._media_batch_state.events
         self._pending_media_batch_tasks = self._media_batch_state.tasks
         # Exec approval button state (approval_id → {session_key, message_id, chat_id})
-        self._approval_state: Dict[int, Dict[str, Any]] = {}
+        self._approval_state: Dict[int, Dict[str, str]] = {}
         self._approval_counter = itertools.count(1)
         # Update prompt button state (prompt_id → {session_key, message_id, chat_id})
         self._update_prompt_state: Dict[int, Dict[str, str]] = {}
@@ -1924,20 +1924,10 @@ class FeishuAdapter(BasePlatformAdapter):
 
             result = self._finalize_send_result(response, "send_exec_approval failed")
             if result.success:
-                # Determine if this is a DM so the approval-click handler can
-                # skip the group-policy gate for direct messages (matching the
-                # behaviour of _admit() which always admits DMs).
-                cached_chat = self._chat_info_cache.get(chat_id)
-                if cached_chat is None:
-                    # Cache miss — fetch now so we have the chat type.
-                    chat_info = await self.get_chat_info(chat_id)
-                    cached_chat = self._chat_info_cache.get(chat_id) or chat_info
-                is_dm = (cached_chat or {}).get("type") == "dm"
                 self._approval_state[approval_id] = {
                     "session_key": session_key,
                     "message_id": result.message_id or "",
                     "chat_id": chat_id,
-                    "is_dm": is_dm,
                 }
             return result
         except Exception as exc:
@@ -2610,17 +2600,9 @@ class FeishuAdapter(BasePlatformAdapter):
         operator = getattr(event, "operator", None)
         open_id = str(getattr(operator, "open_id", "") or "")
         sender_id = SimpleNamespace(open_id=open_id, user_id=str(getattr(operator, "user_id", "") or ""))
-        # DMs bypass group-policy gating (matching _admit() which always
-        # admits direct messages).  Only apply the group allowlist/blacklist
-        # check when the approval was sent in a group chat.
-        if state.get("is_dm"):
-            if not self._is_interactive_operator_authorized(open_id):
-                logger.warning("[Feishu] Unauthorized approval click by %s", open_id or "<unknown>")
-                return P2CardActionTriggerResponse() if P2CardActionTriggerResponse else None
-        else:
-            if not self._allow_group_message(sender_id, state.get("chat_id", ""), is_bot=False):
-                logger.warning("[Feishu] Unauthorized approval click by %s", open_id or "<unknown>")
-                return P2CardActionTriggerResponse() if P2CardActionTriggerResponse else None
+        if not self._allow_group_message(sender_id, state.get("chat_id", ""), is_bot=False):
+            logger.warning("[Feishu] Unauthorized approval click by %s", open_id or "<unknown>")
+            return P2CardActionTriggerResponse() if P2CardActionTriggerResponse else None
 
         callback_chat_id = str(getattr(getattr(event, "context", None), "open_chat_id", "") or "")
         expected_chat_id = str(state.get("chat_id", "") or "")
