@@ -57,7 +57,9 @@ export function ModelVisibilityDialog({
   })
 
   const providers = useMemo(
-    () => (modelOptions.data?.providers ?? []).filter(provider => (provider.models ?? []).length > 0),
+    () => (modelOptions.data?.providers ?? []).filter(
+      provider => (provider.models ?? []).length > 0 && provider.authenticated !== false
+    ),
     [modelOptions.data]
   )
 

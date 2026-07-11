@@ -213,22 +213,31 @@ def _check_via_local_git(repo_dir: Path) -> Optional[int]:
     is_shallow = shallow == "true"
 
     try:
-        fetch_args = ["git", "fetch", "origin"]
-        if is_shallow:
-            fetch_args += ["--depth", "1"]
-        fetch_args.append("--quiet")
+        fetch_args = ["git", "fetch", "origin", "--quiet"]
         subprocess.run(
             fetch_args,
-            capture_output=True, timeout=10,
+            capture_output=True, timeout=30,
             cwd=str(repo_dir),
         )
     except Exception:
         pass  # Offline or timeout — use stale refs, that's fine
 
     if is_shallow:
-        # No history to count across the shallow boundary. `origin/main` may not
-        # be a tracking ref in a `clone --depth 1`, so prefer FETCH_HEAD (just
-        # updated by the fetch above) and fall back to origin/main.
+        # Shallow clones can still count commits with `rev-list --count` after
+        # fetching — try that first. Only fall back to SHA comparison if the
+        # count command itself fails (e.g. corrupted shallow file).
+        try:
+            result = subprocess.run(
+                ["git", "rev-list", "--count", "HEAD..origin/main"],
+                capture_output=True, text=True, timeout=5,
+                cwd=str(repo_dir),
+            )
+            if result.returncode == 0:
+                return int(result.stdout.strip())
+        except Exception:
+            pass
+
+        # Fallback: compare tip SHAs when counting is impossible.
         head_rev = _git_stdout(["rev-parse", "HEAD"], cwd=repo_dir)
         target_rev = (
             _git_stdout(["rev-parse", "FETCH_HEAD"], cwd=repo_dir)

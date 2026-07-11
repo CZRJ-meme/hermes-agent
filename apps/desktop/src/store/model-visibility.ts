@@ -139,6 +139,14 @@ export function resolveVisibleKeys(stored: Set<string> | null, providers: readon
   const next = new Set(stored)
 
   for (const provider of providers) {
+    // Skip unauthenticated providers — they have no models the user can
+    // actually select, so expanding defaults for them would pollute the
+    // visible set and create sentinel-mutex bugs with grouped siblings
+    // (e.g. hiding alibaba vs alibaba-coding-plan re-expanding each other).
+    if (provider.authenticated === false) {
+      continue
+    }
+
     const providerPrefix = `${provider.slug}::`
 
     const hasStoredProvider = [...stored].some(key => key.startsWith(providerPrefix) && !isProviderSentinel(key))

@@ -103,7 +103,7 @@ export function ModelMenuPanel({ gateway, onSelectModel, requestGateway }: Model
       : String(modelOptions.error)
     : null
 
-  const providers = modelOptions.data?.providers
+  const providers = modelOptions.data?.providers?.filter(p => p.authenticated !== false)
 
   // The catalog carries MoA presets as a virtual `moa` provider row. Render
   // them in their dedicated section below and keep the row out of the main
