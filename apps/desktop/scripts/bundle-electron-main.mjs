@@ -28,7 +28,8 @@ const external = ['electron', 'node-pty', 'fs']
 // Production bundles bake packaged=true so unpackaged `electron .` still
 // behaves like a packaged build. Dev bundles (`--dev`) leave the env alone
 // so HERMES_DESKTOP_DEV_SERVER / source-tree resolution keep working.
-const isDev = process.argv.includes('--dev')
+// HERMES_DESKTOP_SOURCE_BUILD=1 also triggers dev mode for `hermes desktop --source`.
+const isDev = process.argv.includes('--dev') || process.env.HERMES_DESKTOP_SOURCE_BUILD === '1'
 const define = isDev
   ? {}
   : { 'process.env.HERMES_DESKTOP_IS_PACKAGED': JSON.stringify(true) }

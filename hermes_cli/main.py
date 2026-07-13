@@ -5741,6 +5741,11 @@ def cmd_gui(args: argparse.Namespace):
             build_label = "source build" if source_mode else "packaged app"
             print(f"→ Building desktop {build_label}...")
             build_script = "build" if source_mode else "pack"
+            if source_mode:
+                # Source builds run via `electron .`, not from a packaged app.
+                # Tell bundle-electron-main.mjs NOT to hardcode IS_PACKAGED=true,
+                # so resolveUpdateRoot() can find the source git checkout.
+                env["HERMES_DESKTOP_SOURCE_BUILD"] = "1"
             if _force_adhoc_macos_signing(env, source_mode=source_mode):
                 print("  → No Developer ID configured; ad-hoc signing this local rebuild "
                       "(CSC_IDENTITY_AUTO_DISCOVERY=false)")
