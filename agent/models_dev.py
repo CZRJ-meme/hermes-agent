@@ -150,7 +150,10 @@ PROVIDER_TO_MODELS_DEV: Dict[str, str] = {
     "kimi-coding": "kimi-for-coding",
     "moonshot": "kimi-for-coding",
     "stepfun": "stepfun",
-    "kimi-coding-cn": "kimi-for-coding",
+    # Kimi's China open platform (api.moonshot.cn) is a separate models.dev
+    # provider from the Kimi Code membership endpoint (api.kimi.com/coding)
+    # since the platform split — model IDs differ (kimi-k3 vs k3).
+    "kimi-coding-cn": "moonshotai-cn",
     "minimax": "minimax",
     "minimax-oauth": "minimax",
     "minimax-cn": "minimax-cn",
